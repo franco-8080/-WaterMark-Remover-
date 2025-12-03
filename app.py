@@ -141,31 +141,35 @@ st.markdown("""
         100% { opacity: 1; transform: scale(1) translateY(0); }
     }
 
-    /* ENHANCED DOWNLOAD BUTTON */
-    .stDownloadButton > button {
-        background: linear-gradient(135deg, #820AD1 0%, #6D08AF 100%) !important;
-        color: white !important;
-        border-radius: 16px !important;
-        padding: 1rem 1.5rem !important;
-        font-weight: 700 !important;
-        font-size: 1.1rem !important;
-        border: none !important;
-        box-shadow: 0 6px 25px rgba(130, 10, 209, 0.35) !important;
+    /* ENHANCED DOWNLOAD BUTTON - CLEAN & ALIGNED */
+    .stDownloadButton {
         width: 100%;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        letter-spacing: -0.01em;
-        animation: fadeIn 0.5s ease-out 0.2s both;
+        display: block;
+    }
+    
+    .stDownloadButton > button {
+        background-color: #820AD1 !important;
+        color: white !important;
+        border-radius: 12px !important;
+        padding: 0.75rem 1.25rem !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+        border: none !important;
+        box-shadow: 0 2px 8px rgba(130, 10, 209, 0.2) !important;
+        width: 100% !important;
+        transition: all 0.2s ease;
+        letter-spacing: 0em;
+        height: auto !important;
     }
     
     .stDownloadButton > button:hover {
-        background: linear-gradient(135deg, #6D08AF 0%, #5A0891 100%) !important;
-        transform: translateY(-3px);
-        box-shadow: 0 12px 35px rgba(130, 10, 209, 0.45) !important;
+        background-color: #6D08AF !important;
+        box-shadow: 0 4px 12px rgba(130, 10, 209, 0.3) !important;
+        transform: translateY(-1px);
     }
     
     .stDownloadButton > button:active {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 15px rgba(130, 10, 209, 0.35) !important;
+        transform: translateY(0px);
     }
 
     /* DIVIDER STYLING */
