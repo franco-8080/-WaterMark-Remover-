@@ -1,7 +1,6 @@
 import streamlit as st
 import fitz  # PyMuPDF
 import io
-import time
 from PIL import Image
 
 # --- 1. CONFIGURATION ---
@@ -11,69 +10,111 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. OPTIMIZED CSS (No Glitches) ---
+# --- 2. BALANCED CSS ---
 st.markdown("""
     <style>
-    /* FORCE LIGHT THEME */
-    [data-testid="stAppViewContainer"] { background-color: #FFFFFF !important; }
-    [data-testid="stHeader"] { background-color: #FFFFFF !important; }
+    /* IMPORT FONTS */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
-    /* GLOBAL FONTS - Standard System Fonts for Readability */
-    * { color: #111111; }
+    /* 1. CENTERED & CONSTRAINED LAYOUT */
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1100px !important; /* Prevents it from getting too wide on huge screens */
+        margin: 0 auto !important;
+    }
+    
+    /* 2. HIDE DEFAULTS */
+    [data-testid="stHeader"] { display: none !important; }
+    #MainMenu, footer { visibility: hidden; }
+    
+    /* 3. TYPOGRAPHY */
+    * { font-family: 'Inter', sans-serif !important; color: #111111; }
 
-    /* TITLE */
-    h1 {
-        font-weight: 800 !important;
+    .hero-title {
+        font-weight: 800;
         background: -webkit-linear-gradient(45deg, #820AD1, #B220E8);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 3rem !important;
-        margin-bottom: 0px !important;
-        padding-top: 10px !important;
+        font-size: 3rem;
+        text-align: center;
+        margin-bottom: 10px;
     }
-    
-    .subtitle {
+    .hero-subtitle {
         color: #6B7280;
         font-size: 1.1rem;
+        text-align: center;
         margin-bottom: 30px;
+        font-weight: 400;
     }
 
-    /* UPLOAD CARD */
+    /* 4. UPLOAD BOX (Refined) */
     [data-testid="stFileUploader"] {
         background-color: #FAFAFA;
         border: 2px dashed #E5E7EB;
-        border-radius: 15px;
-        padding: 20px;
+        border-radius: 16px;
+        padding: 30px;
+        text-align: center;
     }
     [data-testid="stFileUploader"]:hover {
         border-color: #820AD1;
         background-color: #F8F5FF;
     }
 
-    /* PREVIEW CARD */
-    .preview-container {
+    /* 5. DOWNLOAD BUTTON */
+    .stDownloadButton > button {
+        background: linear-gradient(90deg, #820AD1 0%, #6D08AF 100%);
+        color: white !important;
+        border-radius: 12px;
+        padding: 0.8rem 2rem;
+        font-weight: 700;
+        width: 100%;
+        border: none;
+        box-shadow: 0 4px 15px rgba(130, 10, 209, 0.2);
+    }
+    .stDownloadButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(130, 10, 209, 0.3);
+    }
+    
+    /* 6. PREVIEW IMAGE */
+    img {
         border: 1px solid #E5E7EB;
         border-radius: 12px;
-        padding: 10px;
-        background-color: #FAFAFA;
-        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
     }
-
-    /* SLIDER (Standard Streamlit Color) */
-    div[data-baseweb="slider"] div { background-color: #820AD1 !important; }
-
-    /* HIDE CHROME */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    
+    /* 7. INPUTS */
+    .stTextInput input {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 10px;
+    }
+    
+    /* 8. PAGE COUNT INDICATOR */
+    .page-indicator {
+        font-size: 0.9rem;
+        color: #820AD1;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    /* Feature Cards */
+    .feature-card {
+        background: #FFFFFF;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #F3F4F6;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        height: 100%;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. CORE LOGIC (With Caching for Speed) ---
+# --- 3. LOGIC ---
 
-def clean_page_logic(page, header_height, footer_height, text_input, match_case):
-    """Core cleaning logic applied to a page object"""
-    # 1. MAGIC ERASER
+def clean_page_logic(page, header_h, footer_h, text_input, match_case):
     if text_input:
         keywords = [k.strip() for k in text_input.split(',')]
         for keyword in keywords:
@@ -86,143 +127,116 @@ def clean_page_logic(page, header_height, footer_height, text_input, match_case)
                 page.add_redact_annot(quad, fill=None)
         page.apply_redactions()
 
-    # 2. AREA WIPERS
     rect = page.rect
-    # Smart color detection (Bottom Left)
     clip_rect = fitz.Rect(0, rect.height - 10, 1, rect.height - 9)
     pix = page.get_pixmap(clip=clip_rect)
     r, g, b = pix.pixel(0, 0)
     dynamic_color = (r/255, g/255, b/255)
 
-    if footer_height > 0:
-        footer_rect = fitz.Rect(0, rect.height - footer_height, rect.width, rect.height)
-        shape = page.new_shape()
-        shape.draw_rect(footer_rect)
-        shape.finish(color=dynamic_color, fill=dynamic_color, width=0)
-        shape.commit()
+    if footer_h > 0:
+        page.draw_rect(fitz.Rect(0, rect.height - footer_h, rect.width, rect.height), color=dynamic_color, fill=dynamic_color)
+    if header_h > 0:
+        page.draw_rect(fitz.Rect(0, 0, rect.width, header_h), color=dynamic_color, fill=dynamic_color)
 
-    if header_height > 0:
-        header_rect = fitz.Rect(0, 0, rect.width, header_height)
-        shape = page.new_shape()
-        shape.draw_rect(header_rect)
-        shape.finish(color=dynamic_color, fill=dynamic_color, width=0)
-        shape.commit()
+def get_pdf_info(file_bytes):
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    return len(doc)
 
-# CACHED PREVIEW FUNCTION (This makes it fast!)
-# We cache based on inputs so it doesn't re-run heavy logic unnecessarily
+def format_size(size_in_bytes):
+    if size_in_bytes < 1024 * 1024:
+        return f"{size_in_bytes / 1024:.1f} KB"
+    return f"{size_in_bytes / (1024 * 1024):.1f} MB"
+
 @st.cache_data(show_spinner=False)
 def get_preview_image(file_bytes, header_h, footer_h, txt, case):
-    """Extracts Page 1 and applies cleaning for preview"""
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     if len(doc) < 1: return None
-    
-    page = doc[0] # Only process page 1
+    page = doc[0]
     clean_page_logic(page, header_h, footer_h, txt, case)
-    
-    # Render low DPI for super fast preview
-    pix = page.get_pixmap(dpi=72) 
+    pix = page.get_pixmap(dpi=120) 
     return Image.open(io.BytesIO(pix.tobytes("png")))
 
+@st.cache_data
 def process_full_document(file_bytes, header_h, footer_h, txt, case):
-    """Processes the entire file"""
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     output_buffer = io.BytesIO()
     doc.set_metadata({}) 
-    
     for page in doc:
         clean_page_logic(page, header_h, footer_h, txt, case)
-    
     doc.save(output_buffer)
     output_buffer.seek(0)
     return output_buffer
 
-# --- 4. THE UI ---
+# --- 4. UI LAYOUT ---
 
-st.markdown('<h1>DocPolish</h1>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Professional Document Studio</div>', unsafe_allow_html=True)
+# Header
+st.markdown('<div class="hero-title">DocPolish</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-subtitle">Remove watermarks, footers, and clutter instantly.</div>', unsafe_allow_html=True)
 
-# Layout: 40% Controls | 60% Preview
-col_controls, col_preview = st.columns([2, 3], gap="large")
-
-with col_controls:
-    st.markdown("### 1. Upload")
+# UPLOAD SECTION - CENTERED & CONSTRAINED
+c_up1, c_up2, c_up3 = st.columns([1, 2, 1])
+with c_up2:
     uploaded_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
+
+# --- SCENARIO 1: NO FILE ---
+if not uploaded_file:
+    st.write("")
+    st.write("")
+    c1, c2, c3 = st.columns(3, gap="medium")
+    with c1:
+        st.markdown("""<div class="feature-card"><b>🪄 Magic Eraser</b><br><span style="color:#666; font-size:0.9rem">Type words to auto-remove them.</span></div>""", unsafe_allow_html=True)
+    with c2:
+        st.markdown("""<div class="feature-card"><b>📏 Area Wipers</b><br><span style="color:#666; font-size:0.9rem">Clean headers & footers precisely.</span></div>""", unsafe_allow_html=True)
+    with c3:
+        st.markdown("""<div class="feature-card"><b>🔒 100% Private</b><br><span style="color:#666; font-size:0.9rem">Processed locally in browser memory.</span></div>""", unsafe_allow_html=True)
+
+# --- SCENARIO 2: WORKSPACE ---
+else:
+    # PAGE INFO (Subtle, not redundant)
+    page_count = get_pdf_info(uploaded_file.getvalue())
+    file_size_str = format_size(uploaded_file.size)
     
-    if uploaded_file:
-        st.write("---")
-        st.markdown("### 2. Controls")
-        
-        # MAGIC ERASER (No Expander - Cleaner)
-        st.markdown("**🪄 Magic Text Eraser**")
-        st.caption("Remove specific words (comma separated).")
-        text_input = st.text_input("Text to remove", placeholder="e.g. Confidential, Draft")
-        match_case = st.checkbox("Match Case", value=False)
-        
-        st.write("")
-        
-        # SLIDERS
-        st.markdown("**📏 Area Wipers**")
-        header_height = st.slider("Top Header Height", 0, 150, 0)
-        footer_height = st.slider("Bottom Footer Height", 0, 150, 0)
-
-with col_preview:
-    if uploaded_file:
-        st.markdown("### 3. Live Preview (Page 1)")
-        
-        # LIVE PREVIEW CONTAINER
-        with st.container():
-            # This runs fast because of caching
-            preview_img = get_preview_image(
-                uploaded_file.getvalue(), 
-                header_height, 
-                footer_height, 
-                text_input, 
-                match_case
-            )
-            
-            if preview_img:
-                st.image(preview_img, use_container_width=True)
-            else:
-                st.error("Could not load preview.")
-
-# --- 5. SINGLE ACTION BUTTON ---
-if uploaded_file:
     st.write("---")
-    
-    # We use a placeholder to swap buttons
-    action_col1, action_col2, action_col3 = st.columns([1, 2, 1])
-    
-    with action_col2:
-        # LOGIC: 
-        # Since calculating full PDF is heavy, we put it behind a button.
-        # Once clicked, we show the download button immediately.
+
+    # STUDIO UI
+    col_left, col_right = st.columns([1, 1], gap="large")
+
+    with col_left:
+        # File Stats at top of controls
+        st.markdown(f'<div class="page-indicator">📄 Document: {page_count} Pages ({file_size_str})</div>', unsafe_allow_html=True)
         
-        if "processed_data" not in st.session_state:
-            st.session_state.processed_data = None
+        st.markdown("**🪄 Magic Text Eraser**")
+        text_input = st.text_input("keywords", placeholder="e.g. Confidential, Draft", label_visibility="collapsed")
+        match_case = st.checkbox("Match Case", value=False)
+        st.caption("Removes specific words/phrases.")
+        
+        st.write("") 
+        
+        st.markdown("**📏 Area Wipers (Pixels)**")
+        header_height = st.slider("Top Header", 0, 150, 0)
+        footer_height = st.slider("Bottom Footer", 0, 150, 0)
 
-        # The "Trigger" Button
-        if st.button("⚡ Process & Prepare Download", type="primary", use_container_width=True):
-            with st.spinner("Processing full document..."):
-                # Run full process
-                st.session_state.processed_data = process_full_document(
-                    uploaded_file.getvalue(),
-                    header_height,
-                    footer_height,
-                    text_input,
-                    match_case
-                )
-                st.rerun() # Refresh to show download button
+    with col_right:
+        st.markdown("**👁️ Live Preview (Page 1)**")
+        preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
+        if preview_img:
+            # RESTRICTED WIDTH PREVIEW (Pleasing size)
+            st.image(preview_img, width=350)
 
-        # If data is ready, show the Download Button
-        if st.session_state.processed_data:
-            st.download_button(
-                label="⬇️ Download Clean PDF Now",
-                data=st.session_state.processed_data,
-                file_name=f"Clean_{uploaded_file.name}",
-                mime="application/pdf",
-                use_container_width=True
-            )
-            # Optional: Reset button to start over
-            if st.button("Start Over"):
-                st.session_state.processed_data = None
-                st.rerun()
+    # ACTION
+    st.write("---")
+    c_act1, c_act2, c_act3 = st.columns([1, 2, 1])
+    with c_act2:
+        final_pdf_data = process_full_document(
+            uploaded_file.getvalue(), 
+            header_height, 
+            footer_height, 
+            text_input, 
+            match_case
+        )
+        st.download_button(
+            label="⚡ Process & Download PDF",
+            data=final_pdf_data,
+            file_name=f"Clean_{uploaded_file.name}",
+            mime="application/pdf"
+        )
