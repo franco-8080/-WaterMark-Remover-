@@ -6,11 +6,11 @@ from PIL import Image
 # --- 1. CONFIGURATION ---
 st.set_page_config(
     page_title="DocPolish",
-    page_icon="✨",
+    page_icon=None,
     layout="wide"
 )
 
-# --- 2. CLEAN & BALANCED CSS ---
+# --- 2. PROFESSIONAL CSS ---
 st.markdown("""
     <style>
     /* IMPORT FONTS */
@@ -40,6 +40,7 @@ st.markdown("""
         font-size: 3rem;
         text-align: center;
         margin-bottom: 10px;
+        letter-spacing: -0.02em;
     }
     .hero-subtitle {
         color: #6B7280;
@@ -47,66 +48,85 @@ st.markdown("""
         text-align: center;
         margin-bottom: 40px;
         font-weight: 400;
+        letter-spacing: -0.01em;
     }
 
-    /* 4. UPLOAD BOX (Balanced Width) */
+    /* 4. UPLOAD BOX (Professional & Compact) */
     [data-testid="stFileUploader"] {
         background-color: #FAFAFA;
-        border: 2px dashed #E5E7EB;
-        border-radius: 16px;
-        padding: 20px;
+        border: 1px dashed #D1D5DB; /* Thinner, gray border */
+        border-radius: 12px;
+        padding: 30px;
         text-align: center;
     }
     [data-testid="stFileUploader"]:hover {
         border-color: #820AD1;
-        background-color: #F8F5FF;
+        background-color: #FDFBFF;
     }
 
     /* 5. DOWNLOAD BUTTON */
     .stDownloadButton > button {
-        background: linear-gradient(90deg, #820AD1 0%, #6D08AF 100%);
+        background-color: #111111 !important; /* Solid Black for Professionalism */
         color: white !important;
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 0.8rem 2rem;
-        font-weight: 700;
+        font-weight: 600;
         width: 100%;
         border: none;
-        box-shadow: 0 4px 15px rgba(130, 10, 209, 0.2);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s;
     }
     .stDownloadButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(130, 10, 209, 0.3);
+        background-color: #252525 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 15px -3px rgba(0, 0, 0, 0.15);
     }
     
     /* 6. PREVIEW IMAGE */
     img {
         border: 1px solid #E5E7EB;
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
     
     /* 7. PAGE COUNT BADGE */
     .page-badge {
-        background-color: #F3F4F6;
+        background-color: #FFFFFF;
         color: #6B7280;
-        padding: 4px 12px;
-        border-radius: 12px;
+        padding: 6px 16px;
+        border-radius: 6px;
         font-size: 0.85rem;
-        font-weight: 600;
+        font-weight: 500;
         display: inline-block;
-        margin-top: 5px;
+        margin-top: 10px;
+        border: 1px solid #E5E7EB;
     }
     
     /* 8. INPUTS (Clean) */
     .stTextInput input {
         border: 1px solid #E5E7EB;
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 10px;
     }
     
-    /* Feature Icons (No Box) */
-    .feature-icon { font-size: 1.5rem; margin-bottom: 5px; }
-    .feature-text { color: #666; font-size: 0.9rem; }
+    /* Feature Cards (No Icons) */
+    .feature-card {
+        background: #FFFFFF;
+        padding: 25px 20px;
+        border-radius: 12px;
+        border: 1px solid #E5E7EB;
+        text-align: center;
+        height: 100%;
+        transition: border-color 0.2s;
+    }
+    .feature-card:hover {
+        border-color: #820AD1;
+    }
+    .feature-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: #111; }
+    .feature-text { color: #666; font-size: 0.9rem; line-height: 1.5; }
+    
+    /* Section Headers */
+    h3 { font-size: 1rem !important; font-weight: 700 !important; color: #374151 !important; margin-bottom: 10px !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -165,29 +185,29 @@ def process_full_document(file_bytes, header_h, footer_h, txt, case):
 
 # Header
 st.markdown('<div class="hero-title">DocPolish</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-subtitle">Professional Document Cleanser</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-subtitle">Professional Document Remediation</div>', unsafe_allow_html=True)
 
-# UPLOAD SECTION (Visual Balance: 1-2-1 columns)
-c_up1, c_up2, c_up3 = st.columns([1, 2, 1])
+# UPLOAD SECTION (Compact Width: 1-1.5-1 ratio)
+c_up1, c_up2, c_up3 = st.columns([1, 1.5, 1])
 with c_up2:
     uploaded_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
     
-    # Page Count Badge (Only visible if file exists)
+    # Page Count Badge (Subtle)
     if uploaded_file:
         page_count = get_pdf_info(uploaded_file.getvalue())
-        st.markdown(f'<div style="text-align: center;"><span class="page-badge">📄 {page_count} Pages Detected</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align: center;"><span class="page-badge">{page_count} Pages Detected</span></div>', unsafe_allow_html=True)
 
 # --- STATE 1: NO FILE ---
 if not uploaded_file:
     st.write("")
     st.write("")
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3, gap="medium")
     with c1:
-        st.markdown('<div style="text-align: center;"><div class="feature-icon">🪄</div><b>Magic Eraser</b><div class="feature-text">Type words to vanish them.</div></div>', unsafe_allow_html=True)
+        st.markdown("""<div class="feature-card"><div class="feature-title">Text Eraser</div><div class="feature-text">Automatically detects and removes specific words or sensitive phrases from every page.</div></div>""", unsafe_allow_html=True)
     with c2:
-        st.markdown('<div style="text-align: center;"><div class="feature-icon">📏</div><b>Area Wipers</b><div class="feature-text">Clean headers & footers.</div></div>', unsafe_allow_html=True)
+        st.markdown("""<div class="feature-card"><div class="feature-title">Area Masking</div><div class="feature-text">Clean headers, footers, and margins with precise pixel-level control.</div></div>""", unsafe_allow_html=True)
     with c3:
-        st.markdown('<div style="text-align: center;"><div class="feature-icon">🔒</div><b>100% Private</b><div class="feature-text">Processed locally in browser.</div></div>', unsafe_allow_html=True)
+        st.markdown("""<div class="feature-card"><div class="feature-title">Secure Processing</div><div class="feature-text">All operations run locally in your browser session. No data is stored.</div></div>""", unsafe_allow_html=True)
 
 # --- STATE 2: WORKSPACE ---
 else:
@@ -197,23 +217,23 @@ else:
     col_left, col_right = st.columns([1, 1], gap="large")
 
     with col_left:
-        st.markdown("### 🪄 Magic Text Eraser")
+        st.markdown("### Text Eraser")
         text_input = st.text_input("keywords", placeholder="e.g. Confidential, Draft", label_visibility="collapsed")
         match_case = st.checkbox("Match Case", value=False)
-        st.caption("Removes specific words/phrases.")
+        st.caption("Removes exact matches of words or phrases.")
         
         st.write("") 
         
-        st.markdown("### 📏 Area Wipers")
+        st.markdown("### Area Masking")
         
-        st.caption("Top Header")
+        st.caption("Header Height")
         header_height = st.slider("Header", 0, 150, 0, label_visibility="collapsed")
         
-        st.caption("Bottom Footer")
+        st.caption("Footer Height")
         footer_height = st.slider("Footer", 0, 150, 0, label_visibility="collapsed")
 
     with col_right:
-        st.markdown("### 👁️ Live Preview")
+        st.markdown("### Live Preview")
         preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
         if preview_img:
             # RESTRICTED WIDTH (Matches left column weight)
@@ -231,7 +251,7 @@ else:
             match_case
         )
         st.download_button(
-            label="⚡ Process & Download PDF",
+            label="Download Clean PDF",
             data=final_pdf_data,
             file_name=f"Clean_{uploaded_file.name}",
             mime="application/pdf"
