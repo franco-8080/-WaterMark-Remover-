@@ -16,17 +16,16 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
-    /* 1. Global Font - applied gently */
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
 
-    /* 2. PROTECT ICONS (CRITICAL FIX) */
+    /* PROTECT ICONS */
     [data-testid="stExpander"] svg, [class*="material-symbols"], .st-emotion-cache-1pbqwg9 {
         font-family: 'Material Symbols Rounded' !important;
     }
 
-    /* 3. Uploader Styling */
+    /* Uploader Styling */
     [data-testid="stFileUploader"] {
         background-color: #FFFFFF;
         border: 2px dashed #E5E7EB;
@@ -35,11 +34,11 @@ st.markdown("""
         transition: all 0.3s ease;
     }
     [data-testid="stFileUploader"]:hover {
-        border-color: #3B82F6; /* Blue for "Water" theme */
+        border-color: #3B82F6;
         background-color: #EFF6FF;
     }
 
-    /* 4. Notification Box */
+    /* Notification Box */
     .auto-detect-box {
         background: linear-gradient(to right, #EFF6FF, #DBEAFE);
         border: 1px solid #BFDBFE;
@@ -50,7 +49,7 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 5. Headers */
+    /* Headers */
     .hero-container {
         text-align: center;
         margin-bottom: 40px;
@@ -58,7 +57,6 @@ st.markdown("""
     }
     .hero-title {
         font-weight: 800;
-        /* Blue/Teal gradient for "Watermark" theme */
         background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -72,7 +70,7 @@ st.markdown("""
         font-weight: 400;
     }
 
-    /* 6. Button Styling */
+    /* Button Styling */
     .stDownloadButton > button {
         background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
         color: white !important;
@@ -88,15 +86,9 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
-    /* 7. Hide default elements */
     [data-testid="stHeader"], footer { display: none !important; }
     .block-container { padding-top: 2rem !important; }
-    
-    /* 8. Center Image in Preview Column */
-    div[data-testid="stImage"] {
-        display: flex;
-        justify-content: center;
-    }
+    div[data-testid="stImage"] { display: flex; justify-content: center; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -117,9 +109,10 @@ def detect_watermark_candidates(file_bytes):
     suggestions = [text for text, count in text_counts.items() if count >= threshold]
     return ", ".join(suggestions)
 
-def clean_page_logic(page, header_h, footer_h, text_input, match_case):
-    if text_input:
-        keywords = [k.strip() for k in text_input.split(',')]
+def clean_page_logic(page, header_h, footer_h, keywords_str, match_case):
+    # 1. Text Redaction
+    if keywords_str:
+        keywords = [k.strip() for k in keywords_str.split(',')]
         for keyword in keywords:
             if not keyword: continue
             quads = page.search_for(keyword)
@@ -131,19 +124,17 @@ def clean_page_logic(page, header_h, footer_h, text_input, match_case):
         page.apply_redactions()
 
     rect = page.rect
+    # 2. Smart color detection
     clip = fitz.Rect(0, rect.height-10, 1, rect.height-9)
     pix = page.get_pixmap(clip=clip)
     r, g, b = pix.pixel(0, 0)
     dynamic_color = (r/255, g/255, b/255)
 
+    # 3. Area Wiping
     if footer_h > 0:
         page.draw_rect(fitz.Rect(0, rect.height - footer_h, rect.width, rect.height), color=dynamic_color, fill=dynamic_color)
     if header_h > 0:
         page.draw_rect(fitz.Rect(0, 0, rect.width, header_h), color=dynamic_color, fill=dynamic_color)
-
-def get_pdf_info(file_bytes):
-    doc = fitz.open(stream=file_bytes, filetype="pdf")
-    return len(doc)
 
 @st.cache_data(show_spinner=False)
 def get_preview_image(file_bytes, header_h, footer_h, txt, case):
@@ -167,7 +158,6 @@ def process_full_document(file_bytes, header_h, footer_h, txt, case):
 
 # --- 4. UI LAYOUT ---
 
-# HERO SECTION
 st.markdown("""
 <div class="hero-container">
     <div class="hero-title">PDF Watermark Remover</div>
@@ -175,29 +165,30 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# UPLOAD SECTION
+# UPLOAD
 c1, c2, c3 = st.columns([1, 6, 1])
 with c2:
     uploaded_file = st.file_uploader("Drop your PDF here to start", type="pdf", label_visibility="collapsed")
 
-# --- LOGIC HANDLING ---
+# STATE MANAGEMENT
 if uploaded_file:
     file_bytes = uploaded_file.getvalue()
     
+    # Initialize State if new file
     if "current_file" not in st.session_state or st.session_state.current_file != uploaded_file.name:
         st.session_state.current_file = uploaded_file.name
         with st.spinner("🔍 Scanning for watermarks..."):
-            detected_keywords = detect_watermark_candidates(file_bytes)
-            st.session_state.auto_keywords = detected_keywords
-            st.session_state.header_h = 0
-            st.session_state.footer_h = 0
+            st.session_state.auto_keywords = detect_watermark_candidates(file_bytes)
+            # Reset sliders
+            st.session_state.header_val = 0
+            st.session_state.footer_val = 0
+            # Set text input default
+            st.session_state.text_val = st.session_state.auto_keywords
 
-# --- STATE 1: LANDING PAGE (No File) ---
 if not uploaded_file:
     st.write("")
     st.write("")
     col1, col2, col3 = st.columns(3)
-    
     with col1:
         st.markdown('### ⚡ Auto-Detect')
         st.caption("Identifies repetitive text and watermarks automatically.")
@@ -208,35 +199,57 @@ if not uploaded_file:
         st.markdown('### 🛡️ Private & Secure')
         st.caption("No server uploads. Your files never leave your browser.")
 
-# --- STATE 2: WORKSPACE (File Loaded) ---
 else:
-    default_keywords = st.session_state.get("auto_keywords", "")
-    
-    if default_keywords:
+    # Check if we should keep expander open
+    # If any value is "active" (non-zero or changed), we default to True
+    header_active = st.session_state.get("header_val", 0) > 0
+    footer_active = st.session_state.get("footer_val", 0) > 0
+    text_active = st.session_state.get("text_val", "") != st.session_state.get("auto_keywords", "")
+    should_expand = header_active or footer_active or text_active
+
+    if st.session_state.get("auto_keywords"):
         st.markdown(f"""
         <div class="auto-detect-box">
-            🎯 <b>Auto-Detection:</b> Found potential watermarks: <u>{default_keywords}</u>
+            🎯 <b>Auto-Detection:</b> Found potential watermarks: <u>{st.session_state.auto_keywords}</u>
         </div>
         """, unsafe_allow_html=True)
 
     with st.container(border=True):
-        
         col_settings, col_preview = st.columns([3, 2], gap="large")
         
-        # LEFT: SETTINGS
         with col_settings:
             st.subheader("🛠️ Removal Settings")
             
-            with st.expander("Advanced Options", expanded=False):
+            # FIXED: logic for keeping it open
+            with st.expander("Advanced Options", expanded=should_expand):
+                
                 st.markdown("**📝 Text Watermarks**")
-                text_input = st.text_input("Keywords to remove", value=default_keywords, label_visibility="collapsed")
-                match_case = st.checkbox("Match Case", value=False)
+                # ADDED HELP TOOLTIP
+                text_input = st.text_input(
+                    "Keywords", 
+                    key="text_val",
+                    help="Enter specific words to erase (e.g., 'Confidential'). Separate multiple words with commas."
+                )
+                match_case = st.checkbox(
+                    "Match Case", 
+                    value=False,
+                    help="If checked, 'Draft' will NOT remove 'DRAFT' (Case sensitive)."
+                )
                 
                 st.markdown("---")
                 
-                st.markdown("**✂️ Header & Footer**")
-                header_height = st.slider("Top Margin Cut", 0, 150, st.session_state.get("header_h", 0))
-                footer_height = st.slider("Bottom Margin Cut", 0, 150, st.session_state.get("footer_h", 0))
+                st.markdown("**✂️ Header & Footer Cutters**")
+                # ADDED HELP TOOLTIP
+                header_height = st.slider(
+                    "Top Margin Cut", 0, 150, 
+                    key="header_val",
+                    help="White-outs the top X pixels of every page. Useful for removing stubborn header logos."
+                )
+                footer_height = st.slider(
+                    "Bottom Margin Cut", 0, 150, 
+                    key="footer_val",
+                    help="White-outs the bottom X pixels of every page. Removes page numbers or footer watermarks."
+                )
 
             st.write("")
             final_pdf_data = process_full_document(
@@ -253,11 +266,10 @@ else:
                 mime="application/pdf"
             )
 
-        # RIGHT: PREVIEW
         with col_preview:
             st.subheader("👁️ Preview")
             preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
             if preview_img:
                 st.image(preview_img, width=450)
             else:
-                st.info("Preview unavailable for this file.")
+                st.info("Preview unavailable.")
