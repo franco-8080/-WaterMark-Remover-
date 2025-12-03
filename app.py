@@ -3,14 +3,14 @@ import fitz  # PyMuPDF
 import io
 import time
 
-# --- 1. CONFIGURATION ---
+# --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="DocPolish",
-    page_icon="🟣",
+    page_icon="✨",
     layout="centered"
 )
 
-# --- 2. STYLING ---
+# --- 2. CLEAN & MINIMAL CSS ---
 st.markdown("""
     <style>
     /* FORCE LIGHT THEME */
@@ -53,27 +53,25 @@ st.markdown("""
         background-color: #F3E8FF;
     }
 
-    /* SLIDER FIX */
-    div[data-baseweb="slider"] div { background-color: #820AD1 !important; }
-
-    /* SUCCESS BUBBLE (Full Width to match button) */
+    /* SUCCESS BUBBLE */
     .success-box {
         background-color: #F3E8FF;
         color: #6D08AF;
-        padding: 12px;
-        border-radius: 12px; /* Matches button curve slightly */
+        padding: 15px;
+        border-radius: 12px;
         font-weight: 600;
         text-align: center;
         margin-bottom: 12px;
         border: 1px solid #D8B4FE;
-        width: 100%; /* Forces alignment */
+        width: 100%; 
+        box-sizing: border-box;
     }
 
     /* DOWNLOAD BUTTON */
     .stDownloadButton > button {
         background-color: #820AD1 !important;
         color: white !important;
-        border-radius: 12px !important; /* Consistent radius */
+        border-radius: 12px !important;
         padding: 0.8rem 1rem !important;
         font-weight: 600 !important;
         font-size: 1.1rem !important;
@@ -94,7 +92,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. LOGIC ---
+# --- 3. PROCESSING LOGIC ---
 def process_pdf(input_bytes, footer_height):
     doc = fitz.open(stream=input_bytes, filetype="pdf")
     output_buffer = io.BytesIO()
@@ -124,7 +122,7 @@ def process_pdf(input_bytes, footer_height):
 st.markdown('<h1>DocPolish</h1>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">Simple. Transparent. Clean.</p>', unsafe_allow_html=True)
 
-# Main Area
+# Main Container
 c1, c2, c3 = st.columns([1, 8, 1])
 
 with c2:
@@ -137,7 +135,7 @@ with c2:
         st.markdown("**Cleaning Depth**")
         st.caption("Controls how many pixels are removed from the bottom of the page. Increase this only if footer text is still visible.")
         
-        # Standard Slider
+        # Slider (Using native styling so it doesn't break)
         footer_height = st.slider("", 10, 100, 30, label_visibility="collapsed")
         
         st.write("---") 
@@ -147,25 +145,14 @@ with c2:
             cleaned_data, page_count = process_pdf(uploaded_file.getvalue(), footer_height)
             time.sleep(0.5)
         
-        # --- RESULTS AREA (Perfectly Aligned) ---
-        # We create a new column set just for the results to pinch them in slightly
-        res_col1, res_col2, res_col3 = st.columns([1, 2, 1])
+        # --- RESULTS ---
+        # 1. Success Message
+        st.markdown(f'<div class="success-box">✨ {page_count} Pages Cleaned</div>', unsafe_allow_html=True)
         
-        with res_col2:
-            # 1. The Success Message (Full Width of this column)
-            st.markdown(f'<div class="success-box">✨ {page_count} Pages Cleaned</div>', unsafe_allow_html=True)
-            
-            # 2. The Download Button (Full Width of this column)
-            st.download_button(
-                label="Download PDF",
-                data=cleaned_data,
-                file_name=f"Clean_{uploaded_file.name}",
-                mime="application/pdf"
-            )
-
-# Footer Trust Signals
-st.write("")
-st.write("")
-st.markdown("""
-
-""", unsafe_allow_html=True)
+        # 2. Download Button
+        st.download_button(
+            label="Download PDF",
+            data=cleaned_data,
+            file_name=f"Clean_{uploaded_file.name}",
+            mime="application/pdf"
+        )
