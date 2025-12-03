@@ -6,11 +6,11 @@ import time
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="DocPolish",
-    page_icon="🧠",
+    page_icon="✨",
     layout="centered"
 )
 
-# --- 2. INTELLIGENT STYLING ---
+# --- 2. BEAUTIFUL & CLEAN CSS ---
 st.markdown("""
     <style>
     /* FORCE LIGHT THEME */
@@ -20,12 +20,14 @@ st.markdown("""
     /* GLOBAL FONTS */
     * { font-family: 'Inter', sans-serif !important; color: #111111; }
 
-    /* TITLE */
+    /* TITLE - Gradient Purple */
     h1 {
         font-weight: 800 !important;
         letter-spacing: -0.03em !important;
-        color: #820AD1 !important;
-        font-size: 3rem !important;
+        background: -webkit-linear-gradient(45deg, #820AD1, #B220E8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 3.5rem !important;
         text-align: center;
         margin-bottom: 0px !important;
         padding-top: 10px !important;
@@ -36,68 +38,74 @@ st.markdown("""
         color: #6B7280 !important;
         font-size: 1.1rem;
         margin-top: 5px;
-        margin-bottom: 30px;
+        margin-bottom: 40px;
         font-weight: 400;
     }
 
-    /* UPLOAD CARD */
+    /* UPLOAD CARD - Glassmorphism Feel */
     [data-testid="stFileUploader"] {
-        background-color: #F8F9FA; 
+        background-color: #FAFAFA; 
         border: 2px dashed #E5E7EB;
         border-radius: 20px;
-        padding: 30px;
+        padding: 40px;
         text-align: center;
+        transition: all 0.2s;
     }
     [data-testid="stFileUploader"]:hover {
         border-color: #820AD1;
-        background-color: #F3E8FF;
+        background-color: #F8F5FF;
     }
 
-    /* SMART INPUT FIELDS */
-    .stTextInput input {
-        border-radius: 10px;
-        border: 1px solid #E5E7EB;
-        padding: 10px 15px;
-        color: #111;
+    /* TOOL CARDS (Containers) */
+    .tool-card {
+        background-color: #FFFFFF;
+        border: 1px solid #F3F4F6;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        margin-bottom: 15px;
     }
-    .stTextInput input:focus {
-        border-color: #820AD1;
-        box-shadow: 0 0 0 1px #820AD1;
-    }
-
-    /* SLIDER COLOR */
-    div[data-baseweb="slider"] div { background-color: #820AD1 !important; }
-
-    /* SUCCESS BUBBLE */
-    .success-box {
-        background-color: #F3E8FF;
-        color: #6D08AF;
-        padding: 15px;
+    
+    /* SUCCESS NOTIFICATION */
+    .success-toast {
+        background-color: #ECFDF5;
+        color: #047857;
+        padding: 16px;
         border-radius: 12px;
         font-weight: 600;
         text-align: center;
-        margin-bottom: 12px;
-        border: 1px solid #D8B4FE;
-        width: 100%; 
-        box-sizing: border-box;
+        border: 1px solid #D1FAE5;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
     }
 
-    /* DOWNLOAD BUTTON */
+    /* DOWNLOAD BUTTON - Large & Prominent */
     .stDownloadButton > button {
-        background-color: #820AD1 !important;
+        background: linear-gradient(90deg, #820AD1 0%, #6D08AF 100%);
         color: white !important;
         border-radius: 12px !important;
-        padding: 0.8rem 1rem !important;
-        font-weight: 600 !important;
+        padding: 1rem 2rem !important;
+        font-weight: 700 !important;
         font-size: 1.1rem !important;
         border: none !important;
-        box-shadow: 0 4px 15px rgba(130, 10, 209, 0.3) !important;
+        box-shadow: 0 10px 25px rgba(130, 10, 209, 0.25) !important;
         width: 100%;
         transition: transform 0.2s;
     }
     .stDownloadButton > button:hover {
-        background-color: #6D08AF !important;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: 0 15px 35px rgba(130, 10, 209, 0.35) !important;
+    }
+
+    /* INPUT FIELDS */
+    .stTextInput input {
+        border-radius: 10px;
+        border: 1px solid #E5E7EB;
+    }
+    .stTextInput input:focus {
+        border-color: #820AD1;
+        box-shadow: 0 0 0 2px rgba(130,10,209,0.1);
     }
 
     /* HIDE CHROME */
@@ -107,46 +115,33 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SMART ENGINE LOGIC ---
+# --- 3. PROCESSING LOGIC ---
 def process_pdf(input_bytes, footer_height, text_to_remove, match_case, whole_word):
     doc = fitz.open(stream=input_bytes, filetype="pdf")
     output_buffer = io.BytesIO()
-    
-    # 1. Privacy Scrub (Metadata Wipe)
-    doc.set_metadata({}) 
+    doc.set_metadata({}) # Privacy Scrub
     
     for page in doc:
-        # --- ENGINE A: SMART TEXT HUNTER ---
+        # 1. MAGIC ERASER (Text)
         if text_to_remove:
-            # Get every word with its location
             words = page.get_text("words")
-            
             for w in words:
-                word_text = w[4] # The text string
-                word_rect = fitz.Rect(w[0], w[1], w[2], w[3]) # The coordinates
+                word_text = w[4]
+                word_rect = fitz.Rect(w[0], w[1], w[2], w[3])
                 
-                # Check 1: Case Sensitivity
                 if match_case:
-                    # Strict: "Confidential" != "CONFIDENTIAL"
-                    text_match = (text_to_remove == word_text)
-                    if not whole_word:
-                        text_match = (text_to_remove in word_text)
+                    is_match = (text_to_remove == word_text) if whole_word else (text_to_remove in word_text)
                 else:
-                    # Loose: "confidential" == "CONFIDENTIAL"
-                    text_match = (text_to_remove.lower() == word_text.lower())
-                    if not whole_word:
-                        text_match = (text_to_remove.lower() in word_text.lower())
+                    is_match = (text_to_remove.lower() == word_text.lower()) if whole_word else (text_to_remove.lower() in word_text.lower())
 
-                # Fire Laser if matched
-                if text_match:
+                if is_match:
                     page.add_redact_annot(word_rect, fill=None)
-            
-            # Apply redactions for this page
             page.apply_redactions()
 
-        # --- ENGINE B: FOOTER POLISHER ---
+        # 2. FOOTER WIPER (Area)
         if footer_height > 0:
             rect = page.rect
+            # Smart color detection
             clip_rect = fitz.Rect(0, rect.height - 10, 1, rect.height - 9)
             pix = page.get_pixmap(clip=clip_rect)
             r, g, b = pix.pixel(0, 0)
@@ -166,71 +161,54 @@ def process_pdf(input_bytes, footer_height, text_to_remove, match_case, whole_wo
 
 # Header
 st.markdown('<h1>DocPolish</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">The Smartest Way to Clean PDFs.</p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle">Intelligent Document Cleanser</p>', unsafe_allow_html=True)
 
 # Main Container
 c1, c2, c3 = st.columns([1, 8, 1])
 
 with c2:
-    uploaded_file = st.file_uploader("Drop PDF here", type="pdf")
+    uploaded_file = st.file_uploader("Upload PDF Document", type="pdf")
     
     if uploaded_file:
         st.write("")
         
-        # --- SECTION 1: MAGIC ERASER ---
-        st.markdown("**🪄 Magic Text Eraser**")
+        # --- CARD 1: MAGIC ERASER ---
+        st.markdown('<div class="tool-card">', unsafe_allow_html=True)
+        st.markdown("### 🪄 Magic Eraser")
+        st.caption("Removes specific words (e.g. 'Confidential', 'Draft') from anywhere on the page.")
         
-        col_input, col_opt = st.columns([2, 1])
-        with col_input:
-            text_to_remove = st.text_input("Text to remove", placeholder="e.g. CONFIDENTIAL", label_visibility="collapsed")
+        col_in, col_tog = st.columns([2, 1])
+        with col_in:
+            text_to_remove = st.text_input("Text to remove", placeholder="Type word here...", label_visibility="collapsed")
+        with col_tog:
+            match_case = st.checkbox("Match Case", value=False)
+            whole_word = st.checkbox("Whole Word", value=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+        # --- CARD 2: FOOTER POLISH ---
+        st.markdown('<div class="tool-card">', unsafe_allow_html=True)
+        st.markdown("### 📐 Footer Wiper")
+        st.caption("The 'Nuclear Option'. Use this to wipe logos, lines, or page numbers from the bottom.")
         
-        with col_opt:
-            # Smart Toggles
-            match_case = st.checkbox("Match Case", value=True, help="Strict matching. 'Draft' will NOT remove 'DRAFT'.")
-            whole_word = st.checkbox("Whole Word", value=True, help="Safe mode. 'Draft' will NOT remove 'Drafting'.")
+        # SLIDER (Native Streamlit style - fixed!)
+        footer_height = st.slider("Cleaning Height (pixels)", 0, 150, 0)
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.write("")
         
-        # --- SECTION 2: FOOTER POLISH ---
-        st.markdown("**📏 Footer Polish**")
-        st.caption("Slide to cover persistent footer text.")
-        footer_height = st.slider("", 0, 100, 0, label_visibility="collapsed")
-        
-        st.write("---") 
-        
-        # --- PROCESSING ---
+        # --- ACTION ---
         if footer_height > 0 or text_to_remove:
-            with st.spinner("🤖 AI Polishing in progress..."):
+            with st.spinner("✨ Polishing pixels..."):
                 cleaned_data, page_count = process_pdf(uploaded_file.getvalue(), footer_height, text_to_remove, match_case, whole_word)
                 time.sleep(0.5)
             
-            # Success Message
-            st.markdown(f'<div class="success-box">✨ Smart-Cleaned {page_count} Pages</div>', unsafe_allow_html=True)
+            # Success Toast
+            st.markdown(f'<div class="success-toast">✅ Successfully Polished {page_count} Pages</div>', unsafe_allow_html=True)
             
-            # Download Button
+            # Download
             st.download_button(
-                label="Download Result",
+                label="Download Clean PDF",
                 data=cleaned_data,
                 file_name=f"Clean_{uploaded_file.name}",
                 mime="application/pdf"
             )
-
-# Footer Trust Signals
-st.write("")
-st.write("")
-st.markdown("""
-<div style="display: flex; justify-content: center; gap: 40px; margin-top: 30px; opacity: 0.8;">
-    <div style="text-align: center;">
-        <span style="font-size: 1.5rem;">🧠</span>
-        <div style="font-size: 0.8rem; font-weight: 600;">Smart Match</div>
-    </div>
-    <div style="text-align: center;">
-        <span style="font-size: 1.5rem;">🛡️</span>
-        <div style="font-size: 0.8rem; font-weight: 600;">Text Safe</div>
-    </div>
-    <div style="text-align: center;">
-        <span style="font-size: 1.5rem;">🔒</span>
-        <div style="font-size: 0.8rem; font-weight: 600;">Private</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
