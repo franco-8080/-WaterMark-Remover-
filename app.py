@@ -1,7 +1,7 @@
 import streamlit as st
 import fitz  # PyMuPDF
 import io
-import uuid # Required for the fix
+import uuid
 from PIL import Image
 from collections import Counter
 
@@ -17,22 +17,58 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    [data-testid="stExpander"] svg, [class*="material-symbols"], .st-emotion-cache-1pbqwg9 { font-family: 'Material Symbols Rounded' !important; }
-    [data-testid="stFileUploader"] { background-color: #FFFFFF; border: 2px dashed #E5E7EB; border-radius: 20px; padding: 30px; }
-    [data-testid="stFileUploader"]:hover { border-color: #3B82F6; background-color: #EFF6FF; }
-    .auto-detect-box { background: linear-gradient(to right, #EFF6FF, #DBEAFE); border: 1px solid #BFDBFE; color: #1E40AF; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; }
+    
+    /* Hide the advanced toolbar visually but keep functionality */
+    [data-testid="stExpander"] {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background-color: #FAFAFA;
+    }
+
+    [data-testid="stFileUploader"] {
+        background-color: #FFFFFF;
+        border: 2px dashed #E5E7EB;
+        border-radius: 20px;
+        padding: 30px;
+    }
+    
+    .auto-detect-box {
+        background: linear-gradient(to right, #EFF6FF, #DBEAFE);
+        border: 1px solid #BFDBFE;
+        color: #1E40AF;
+        padding: 12px 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    
     .hero-container { text-align: center; margin-bottom: 40px; padding: 20px 0; }
-    .hero-title { font-weight: 800; background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 3.5rem; letter-spacing: -1px; margin-bottom: 8px; }
-    .hero-subtitle { color: #6B7280; font-size: 1.2rem; font-weight: 400; }
-    .stDownloadButton > button { background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%); color: white !important; border: none; padding: 0.6rem 2rem; border-radius: 10px; font-weight: 600; width: 100%; transition: all 0.3s ease; }
-    .stDownloadButton > button:hover { box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4); transform: translateY(-2px); }
+    .hero-title { 
+        font-weight: 800; 
+        background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%); 
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        font-size: 3.5rem; 
+        margin-bottom: 8px; 
+    }
+    .hero-subtitle { color: #6B7280; font-size: 1.2rem; }
+    
+    .stDownloadButton > button {
+        background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
+        color: white !important;
+        border: none;
+        padding: 0.6rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        width: 100%;
+    }
+    
     [data-testid="stHeader"], footer { display: none !important; }
     .block-container { padding-top: 2rem !important; }
     div[data-testid="stImage"] { display: flex; justify-content: center; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. LOGIC ---
+# --- 3. CORE LOGIC ---
 
 def detect_watermark_candidates(file_bytes):
     try:
@@ -70,7 +106,7 @@ def clean_page_logic(page, header_h, footer_h, keywords_str, match_case):
     r, g, b = pix.pixel(0, 0)
     dynamic_color = (r/255, g/255, b/255)
 
-    # 3. Area Wiping
+    # 3. Area Wiping (Header/Footer)
     if footer_h > 0:
         page.draw_rect(fitz.Rect(0, rect.height - footer_h, rect.width, rect.height), color=dynamic_color, fill=dynamic_color)
     if header_h > 0:
@@ -105,44 +141,46 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 1. UPLOAD
+# 1. UPLOAD SECTION
 c1, c2, c3 = st.columns([1, 6, 1])
 with c2:
     uploaded_file = st.file_uploader("Drop your PDF here to start", type="pdf", label_visibility="collapsed")
 
-# 2. STATE LOGIC (THE FIX)
+# 2. ANALYSIS & STATE RESET (Runs immediately after upload)
 if uploaded_file:
     file_bytes = uploaded_file.getvalue()
     
-    # We define a "File Signature"
+    # Identify the file uniquely
     file_signature = f"{uploaded_file.name}_{uploaded_file.size}"
     
-    # If the file has changed (or it's the first upload)
+    # If this is a NEW upload (or the first one)
     if "active_file_signature" not in st.session_state or st.session_state.active_file_signature != file_signature:
-        # Update the signature
         st.session_state.active_file_signature = file_signature
-        # Generate a unique ID for this specific file session
+        
+        # GENERATE NEW SESSION ID 
+        # This is the magic trick. By changing this ID, we force the sliders below 
+        # to "re-render" as if they are brand new widgets.
         st.session_state.unique_session_id = uuid.uuid4().hex
-        # Auto-detect text once
-        with st.spinner("Processing..."):
+        
+        with st.spinner("Analyzing document and detecting watermarks..."):
             st.session_state.detected_text = detect_watermark_candidates(file_bytes)
 
-# 3. MAIN UI
+# 3. MAIN INTERFACE
 if not uploaded_file:
     st.write("")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown('### ⚡ Auto-Detect')
-        st.caption("Identifies repetitive text and watermarks automatically.")
+        st.caption("Identifies repetitive text automatically.")
     with col2:
         st.markdown('### 🎨 Smart Fill')
-        st.caption("Replaces removed areas with matching background color.")
+        st.caption("Replaces removed areas with background color.")
     with col3:
-        st.markdown('### 🛡️ Private & Secure')
-        st.caption("Files are processed in secure temporary memory.")
+        st.markdown('### 🛡️ Private')
+        st.caption("Files are processed in memory only.")
 
 else:
-    # Notification
+    # Notification Box
     if st.session_state.get('detected_text'):
         st.markdown(f"""
         <div class="auto-detect-box">
@@ -153,20 +191,22 @@ else:
     with st.container(border=True):
         col_settings, col_preview = st.columns([3, 2], gap="large")
         
-        # RETRIEVE UNIQUE ID
-        # This ID changes every time a NEW file is uploaded.
-        # This forces the sliders below to "reset" because their 'key' changes.
+        # Get the unique ID for this file upload
         uid = st.session_state.unique_session_id
         
         with col_settings:
             st.subheader("🛠️ Removal Settings")
             
-            with st.expander("Advanced Options", expanded=False):
+            # --- HIDDEN ADVANCED TOOLBAR ---
+            # 'expanded=False' keeps it closed.
+            # The User won't see the sliders unless they click this.
+            with st.expander("Advanced Options (Click to Edit)", expanded=False):
+                
                 st.markdown("**📝 Text Watermarks**")
                 text_input = st.text_input(
                     "Keywords", 
                     value=st.session_state.detected_text,
-                    key=f"txt_{uid}",  # Unique Key
+                    key=f"txt_{uid}", 
                     help="Enter specific words to erase."
                 )
                 match_case = st.checkbox("Match Case", value=False, key=f"case_{uid}")
@@ -174,27 +214,28 @@ else:
                 st.markdown("---")
                 st.markdown("**✂️ Header & Footer Cutters**")
                 
-                # HEADER (Default 0)
+                # --- AUTO SLIDING SLIDERS ---
+                # We set 'value=25' for the footer. 
+                # Because 'key' includes 'uid' (which changed on upload), 
+                # Streamlit ignores old state and applies this '25' immediately.
+                
                 header_height = st.slider(
                     "Top Margin Cut", 0, 150, 
-                    value=0, # Default value applies immediately because key is new
+                    value=0, 
                     key=f"head_{uid}", 
                     help="White-outs the top X pixels."
                 )
                 
-                # FOOTER (Default 25)
                 footer_height = st.slider(
                     "Bottom Margin Cut", 0, 150, 
-                    value=25, # <--- THIS APPLIES INSTANTLY ON NEW UPLOAD
+                    value=25,  # <--- AUTO SLIDE HAPPENS HERE
                     key=f"foot_{uid}", 
                     help="White-outs the bottom X pixels."
                 )
 
             st.write("")
             
-            # 4. PROCESSING
-            # Because 'footer_height' is set to 25 via the 'value' param above,
-            # this runs immediately with 25.
+            # 4. PROCESSING (Happens immediately using the values above)
             final_pdf_data = process_full_document(
                 uploaded_file.getvalue(), 
                 header_height, 
@@ -212,7 +253,7 @@ else:
 
         with col_preview:
             st.subheader("👁️ Preview")
-            # Preview also runs immediately with 25
+            # Preview runs immediately with footer=25
             preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
             if preview_img:
                 st.image(preview_img, width=450)
