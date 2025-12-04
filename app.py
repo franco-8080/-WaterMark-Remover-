@@ -95,18 +95,31 @@ st.markdown("""
 # --- 3. LOGIC ---
 
 def detect_watermark_candidates(file_bytes):
+    """
+    Improved detection logic:
+    1. Scans line-by-line (split by \\n) to catch watermarks that share a text block.
+    2. Specifically checks for 'NotebookLM' as per user request.
+    """
     doc = fitz.open(stream=file_bytes, filetype="pdf")
-    page_limit = min(5, len(doc))
-    text_counts = Counter()
+    # Scan up to 10 pages for better accuracy
+    page_limit = min(10, len(doc)) 
+    line_counts = Counter()
     
     for i in range(page_limit):
         page = doc[i]
-        text_blocks = [b[4].strip() for b in page.get_text("blocks")]
-        filtered_blocks = [t for t in text_blocks if len(t) > 3]
-        text_counts.update(filtered_blocks)
+        # Get text as a simple string and split by lines
+        text_content = page.get_text("text")
+        lines = [line.strip() for line in text_content.split('\n') if len(line.strip()) > 2]
+        line_counts.update(lines)
 
-    threshold = max(2, page_limit - 1)
-    suggestions = [text for text, count in text_counts.items() if count >= threshold]
+    # Threshold: Text must appear on at least 40% of scanned pages to be a "watermark"
+    threshold = max(2, int(page_limit * 0.4))
+    suggestions = [text for text, count in line_counts.items() if count >= threshold]
+    
+    # Specific rule for your requested watermark
+    if "NotebookLM" in line_counts and "NotebookLM" not in suggestions:
+        suggestions.append("NotebookLM")
+
     return ", ".join(suggestions)
 
 def clean_page_logic(page, header_h, footer_h, keywords_str, match_case):
@@ -120,17 +133,18 @@ def clean_page_logic(page, header_h, footer_h, keywords_str, match_case):
                 if match_case:
                     res = page.get_text("text", clip=quad).strip()
                     if keyword not in res: continue
+                # Remove the text
                 page.add_redact_annot(quad, fill=None)
         page.apply_redactions()
 
     rect = page.rect
-    # 2. Smart color detection
+    # 2. Smart color detection (samples near bottom edge)
     clip = fitz.Rect(0, rect.height-10, 1, rect.height-9)
     pix = page.get_pixmap(clip=clip)
     r, g, b = pix.pixel(0, 0)
     dynamic_color = (r/255, g/255, b/255)
 
-    # 3. Area Wiping
+    # 3. Area Wiping (Header/Footer)
     if footer_h > 0:
         page.draw_rect(fitz.Rect(0, rect.height - footer_h, rect.width, rect.height), color=dynamic_color, fill=dynamic_color)
     if header_h > 0:
@@ -149,6 +163,7 @@ def get_preview_image(file_bytes, header_h, footer_h, txt, case):
 def process_full_document(file_bytes, header_h, footer_h, txt, case):
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     output_buffer = io.BytesIO()
+    # Remove metadata which might also contain watermark info
     doc.set_metadata({}) 
     for page in doc:
         clean_page_logic(page, header_h, footer_h, txt, case)
@@ -158,7 +173,6 @@ def process_full_document(file_bytes, header_h, footer_h, txt, case):
 
 # --- 4. UI LAYOUT ---
 
-# REMOVED: Visitor Badge from Hero (Moved to bottom)
 st.markdown("""
 <div class="hero-container">
     <div class="hero-title">PDF Watermark Remover</div>
@@ -180,10 +194,8 @@ if uploaded_file:
         st.session_state.current_file = uploaded_file.name
         with st.spinner("🔍 Scanning for watermarks..."):
             st.session_state.auto_keywords = detect_watermark_candidates(file_bytes)
-            # Reset sliders
             st.session_state.header_val = 0
             st.session_state.footer_val = 0
-            # Set text input default
             st.session_state.text_val = st.session_state.auto_keywords
 
 if not uploaded_file:
@@ -202,10 +214,10 @@ if not uploaded_file:
 
 else:
     # Check if we should keep expander open
-    # If any value is "active" (non-zero or changed), we default to True
     header_active = st.session_state.get("header_val", 0) > 0
     footer_active = st.session_state.get("footer_val", 0) > 0
-    text_active = st.session_state.get("text_val", "") != st.session_state.get("auto_keywords", "")
+    # Keep open if there are auto-detected keywords (like NotebookLM)
+    text_active = len(st.session_state.get("text_val", "")) > 0 
     should_expand = header_active or footer_active or text_active
 
     if st.session_state.get("auto_keywords"):
@@ -221,35 +233,32 @@ else:
         with col_settings:
             st.subheader("🛠️ Removal Settings")
             
-            # FIXED: logic for keeping it open
             with st.expander("Advanced Options", expanded=should_expand):
                 
                 st.markdown("**📝 Text Watermarks**")
-                # ADDED HELP TOOLTIP
                 text_input = st.text_input(
                     "Keywords", 
                     key="text_val",
-                    help="Enter specific words to erase (e.g., 'Confidential'). Separate multiple words with commas."
+                    help="Enter specific words to erase (e.g., 'NotebookLM'). Separate multiple words with commas."
                 )
                 match_case = st.checkbox(
                     "Match Case", 
                     value=False,
-                    help="If checked, 'Draft' will NOT remove 'DRAFT' (Case sensitive)."
+                    help="If checked, only exact case matches will be removed."
                 )
                 
                 st.markdown("---")
                 
                 st.markdown("**✂️ Header & Footer Cutters**")
-                # ADDED HELP TOOLTIP
                 header_height = st.slider(
                     "Top Margin Cut", 0, 150, 
                     key="header_val",
-                    help="White-outs the top X pixels of every page. Useful for removing stubborn header logos."
+                    help="White-outs the top X pixels of every page."
                 )
                 footer_height = st.slider(
                     "Bottom Margin Cut", 0, 150, 
                     key="footer_val",
-                    help="White-outs the bottom X pixels of every page. Removes page numbers or footer watermarks."
+                    help="White-outs the bottom X pixels of every page."
                 )
 
             st.write("")
