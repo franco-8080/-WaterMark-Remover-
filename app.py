@@ -158,10 +158,14 @@ def process_full_document(file_bytes, header_h, footer_h, txt, case):
 
 # --- 4. UI LAYOUT ---
 
+# ADDED: Visitor Badge Image
 st.markdown("""
 <div class="hero-container">
     <div class="hero-title">PDF Watermark Remover</div>
     <div class="hero-subtitle">Clean, Professional, and Private Document Processing</div>
+    <div style="margin-top: 15px;">
+        <img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fpdfwatermarkremover.streamlit.app&count_bg=%232563EB&title_bg=%231F2937&icon=&icon_color=%23E7E7E7&title=Total+Visits&edge_flat=false" alt="Visitor Count">
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -197,7 +201,6 @@ if not uploaded_file:
         st.caption("Replaces removed areas with matching background color.")
     with col3:
         st.markdown('### 🛡️ Private & Secure')
-        # UPDATED FOR ACCURACY:
         st.caption("Files are processed in secure temporary memory and are not saved to disk.")
 
 else:
