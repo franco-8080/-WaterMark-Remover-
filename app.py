@@ -230,7 +230,7 @@ else:
                 
                 footer_height = st.slider(
                     "Bottom Margin Cut", 0, 150, 
-                    value=25,  # <--- DEFAULT SET TO 25
+                    value=21,  # <--- DEFAULT SET TO 25
                     key=f"foot_{uid}", 
                     help="White-outs the bottom X pixels."
                 )
