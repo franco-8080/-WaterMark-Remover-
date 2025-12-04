@@ -279,4 +279,22 @@ else:
             )
             st.download_button(
                 label="📥 Download Clean PDF",
-                data=final_pdf_
+                data=final_pdf_data,
+                file_name=f"Clean_{uploaded_file.name}",
+                mime="application/pdf"
+            )
+
+        with col_preview:
+            st.subheader("👁️ Preview")
+            preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
+            if preview_img:
+                st.image(preview_img, width=450)
+            else:
+                st.info("Preview unavailable.")
+
+# --- FOOTER ---
+st.markdown("""
+<div style="text-align: center; margin-top: 60px; border-top: 1px solid #E5E7EB; padding-top: 20px;">
+    <img src="https://visitor-badge.laobi.icu/badge?page_id=pdfwatermarkremover.streamlit.app&left_text=Total%20Visits&left_color=%231F2937&right_color=%232563EB" alt="Visitor Count">
+</div>
+""", unsafe_allow_html=True)
