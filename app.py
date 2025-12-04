@@ -34,16 +34,19 @@ st.markdown("""
 # --- 3. LOGIC ---
 
 def detect_watermark_candidates(file_bytes):
-    doc = fitz.open(stream=file_bytes, filetype="pdf")
-    page_limit = min(5, len(doc))
-    text_counts = Counter()
-    for i in range(page_limit):
-        page = doc[i]
-        text_blocks = [b[4].strip() for b in page.get_text("blocks")]
-        filtered_blocks = [t for t in text_blocks if len(t) > 3]
-        text_counts.update(filtered_blocks)
-    threshold = max(2, page_limit - 1)
-    return ", ".join([text for text, count in text_counts.items() if count >= threshold])
+    try:
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        page_limit = min(5, len(doc))
+        text_counts = Counter()
+        for i in range(page_limit):
+            page = doc[i]
+            text_blocks = [b[4].strip() for b in page.get_text("blocks")]
+            filtered_blocks = [t for t in text_blocks if len(t) > 3]
+            text_counts.update(filtered_blocks)
+        threshold = max(2, page_limit - 1)
+        return ", ".join([text for text, count in text_counts.items() if count >= threshold])
+    except Exception:
+        return ""
 
 def clean_page_logic(page, header_h, footer_h, keywords_str, match_case):
     # 1. Text Redaction
@@ -104,30 +107,31 @@ st.markdown("""
 # 1. FILE UPLOADER
 c1, c2, c3 = st.columns([1, 6, 1])
 with c2:
-    # We assign a key 'uploaded_pdf' so we can track it in session_state
     uploaded_file = st.file_uploader("Drop your PDF here to start", type="pdf", label_visibility="collapsed", key="uploaded_pdf")
 
-# 2. STATE SYNCHRONIZATION (The Fix)
+# 2. ROBUST CLOUD INITIALIZATION
 if uploaded_file:
     file_bytes = uploaded_file.getvalue()
     
-    # Check if this is a fresh file by comparing IDs
-    # 'file_id_tracker' stores the ID of the file we processed last
-    if "file_id_tracker" not in st.session_state or st.session_state.file_id_tracker != uploaded_file.file_id:
+    # We use a unique ID based on name and size to track if it's a new file
+    # This is safer than .file_id which can vary on Cloud
+    current_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+    
+    if "active_file_id" not in st.session_state or st.session_state.active_file_id != current_file_id:
         
-        # --- FORCE DEFAULTS INTO SESSION STATE ---
-        # By setting these keys directly, the sliders (which use the same keys)
-        # will adopt these values immediately upon render.
+        # A. SET STATE DEFAULTS PROGRAMMATICALLY
+        st.session_state.active_file_id = current_file_id
         st.session_state['footer_slider'] = 25  # Force Footer to 25
         st.session_state['header_slider'] = 0   # Force Header to 0
-        st.session_state['text_input_key'] = detect_watermark_candidates(file_bytes) # Auto-detect text
         
-        # Update tracker so we don't reset again for this specific file
-        st.session_state.file_id_tracker = uploaded_file.file_id
-        
-        # Optional: Re-run to ensure UI refreshes instantly with new state
-        # (Usually not needed if placed here, but adds robustness)
-        # st.rerun()
+        with st.spinner("🔍 Auto-detecting watermarks..."):
+            detected = detect_watermark_candidates(file_bytes)
+            st.session_state['text_input_key'] = detected
+
+        # B. FORCE RERUN
+        # This is the crucial fix for Streamlit Cloud. 
+        # It forces the script to restart immediately so the Sliders pick up the values set above.
+        st.rerun()
 
 if not uploaded_file:
     # Landing Page Info
@@ -145,7 +149,6 @@ if not uploaded_file:
 
 else:
     # 3. RENDER UI
-    
     # Notification
     detected_text = st.session_state.get('text_input_key', '')
     if detected_text:
@@ -164,9 +167,10 @@ else:
             # HIDDEN ADVANCED OPTIONS
             with st.expander("Advanced Options", expanded=False):
                 st.markdown("**📝 Text Watermarks**")
+                # Linked to 'text_input_key' in session state
                 text_input = st.text_input(
                     "Keywords", 
-                    key="text_input_key", # Linked to State
+                    key="text_input_key", 
                     help="Enter specific words to erase."
                 )
                 match_case = st.checkbox("Match Case", value=False)
@@ -174,8 +178,8 @@ else:
                 st.markdown("---")
                 st.markdown("**✂️ Header & Footer Cutters**")
                 
-                # SLIDERS LINKED TO STATE
-                # Notice: No 'value=' parameter. They read from st.session_state['header_slider']
+                # SLIDERS (No default 'value=' arg, strictly 'key')
+                # They read from st.session_state['header_slider']
                 header_height = st.slider(
                     "Top Margin Cut", 0, 150, 
                     key="header_slider",
@@ -190,8 +194,7 @@ else:
             st.write("")
             
             # 4. PROCESSING
-            # Since 'footer_height' comes from the slider, which comes from Session State (25),
-            # this function runs with 25 immediately.
+            # Uses the slider values which were forced to 25 via session state
             final_pdf_data = process_full_document(
                 uploaded_file.getvalue(), 
                 header_height, 
@@ -209,7 +212,7 @@ else:
 
         with col_preview:
             st.subheader("👁️ Preview")
-            # Preview also runs with 25 immediately
+            # Preview updates immediately because footer_height is 25
             preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
             if preview_img:
                 st.image(preview_img, width=450)
