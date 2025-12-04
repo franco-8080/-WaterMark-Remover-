@@ -1,6 +1,7 @@
 import streamlit as st
 import fitz  # PyMuPDF
 import io
+import uuid # Required for the fix
 from PIL import Image
 from collections import Counter
 
@@ -45,7 +46,7 @@ def detect_watermark_candidates(file_bytes):
             text_counts.update(filtered_blocks)
         threshold = max(2, page_limit - 1)
         return ", ".join([text for text, count in text_counts.items() if count >= threshold])
-    except Exception:
+    except:
         return ""
 
 def clean_page_logic(page, header_h, footer_h, keywords_str, match_case):
@@ -104,37 +105,30 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 1. FILE UPLOADER
+# 1. UPLOAD
 c1, c2, c3 = st.columns([1, 6, 1])
 with c2:
-    uploaded_file = st.file_uploader("Drop your PDF here to start", type="pdf", label_visibility="collapsed", key="uploaded_pdf")
+    uploaded_file = st.file_uploader("Drop your PDF here to start", type="pdf", label_visibility="collapsed")
 
-# 2. ROBUST CLOUD INITIALIZATION
+# 2. STATE LOGIC (THE FIX)
 if uploaded_file:
     file_bytes = uploaded_file.getvalue()
     
-    # We use a unique ID based on name and size to track if it's a new file
-    # This is safer than .file_id which can vary on Cloud
-    current_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+    # We define a "File Signature"
+    file_signature = f"{uploaded_file.name}_{uploaded_file.size}"
     
-    if "active_file_id" not in st.session_state or st.session_state.active_file_id != current_file_id:
-        
-        # A. SET STATE DEFAULTS PROGRAMMATICALLY
-        st.session_state.active_file_id = current_file_id
-        st.session_state['footer_slider'] = 25  # Force Footer to 25
-        st.session_state['header_slider'] = 0   # Force Header to 0
-        
-        with st.spinner("🔍 Auto-detecting watermarks..."):
-            detected = detect_watermark_candidates(file_bytes)
-            st.session_state['text_input_key'] = detected
+    # If the file has changed (or it's the first upload)
+    if "active_file_signature" not in st.session_state or st.session_state.active_file_signature != file_signature:
+        # Update the signature
+        st.session_state.active_file_signature = file_signature
+        # Generate a unique ID for this specific file session
+        st.session_state.unique_session_id = uuid.uuid4().hex
+        # Auto-detect text once
+        with st.spinner("Processing..."):
+            st.session_state.detected_text = detect_watermark_candidates(file_bytes)
 
-        # B. FORCE RERUN
-        # This is the crucial fix for Streamlit Cloud. 
-        # It forces the script to restart immediately so the Sliders pick up the values set above.
-        st.rerun()
-
+# 3. MAIN UI
 if not uploaded_file:
-    # Landing Page Info
     st.write("")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -148,53 +142,59 @@ if not uploaded_file:
         st.caption("Files are processed in secure temporary memory.")
 
 else:
-    # 3. RENDER UI
     # Notification
-    detected_text = st.session_state.get('text_input_key', '')
-    if detected_text:
+    if st.session_state.get('detected_text'):
         st.markdown(f"""
         <div class="auto-detect-box">
-            🎯 <b>Auto-Detection:</b> Found potential watermarks: <u>{detected_text}</u>
+            🎯 <b>Auto-Detection:</b> Found potential watermarks: <u>{st.session_state.detected_text}</u>
         </div>
         """, unsafe_allow_html=True)
 
     with st.container(border=True):
         col_settings, col_preview = st.columns([3, 2], gap="large")
         
+        # RETRIEVE UNIQUE ID
+        # This ID changes every time a NEW file is uploaded.
+        # This forces the sliders below to "reset" because their 'key' changes.
+        uid = st.session_state.unique_session_id
+        
         with col_settings:
             st.subheader("🛠️ Removal Settings")
             
-            # HIDDEN ADVANCED OPTIONS
             with st.expander("Advanced Options", expanded=False):
                 st.markdown("**📝 Text Watermarks**")
-                # Linked to 'text_input_key' in session state
                 text_input = st.text_input(
                     "Keywords", 
-                    key="text_input_key", 
+                    value=st.session_state.detected_text,
+                    key=f"txt_{uid}",  # Unique Key
                     help="Enter specific words to erase."
                 )
-                match_case = st.checkbox("Match Case", value=False)
+                match_case = st.checkbox("Match Case", value=False, key=f"case_{uid}")
                 
                 st.markdown("---")
                 st.markdown("**✂️ Header & Footer Cutters**")
                 
-                # SLIDERS (No default 'value=' arg, strictly 'key')
-                # They read from st.session_state['header_slider']
+                # HEADER (Default 0)
                 header_height = st.slider(
                     "Top Margin Cut", 0, 150, 
-                    key="header_slider",
+                    value=0, # Default value applies immediately because key is new
+                    key=f"head_{uid}", 
                     help="White-outs the top X pixels."
                 )
+                
+                # FOOTER (Default 25)
                 footer_height = st.slider(
                     "Bottom Margin Cut", 0, 150, 
-                    key="footer_slider",
+                    value=25, # <--- THIS APPLIES INSTANTLY ON NEW UPLOAD
+                    key=f"foot_{uid}", 
                     help="White-outs the bottom X pixels."
                 )
 
             st.write("")
             
             # 4. PROCESSING
-            # Uses the slider values which were forced to 25 via session state
+            # Because 'footer_height' is set to 25 via the 'value' param above,
+            # this runs immediately with 25.
             final_pdf_data = process_full_document(
                 uploaded_file.getvalue(), 
                 header_height, 
@@ -212,7 +212,7 @@ else:
 
         with col_preview:
             st.subheader("👁️ Preview")
-            # Preview updates immediately because footer_height is 25
+            # Preview also runs immediately with 25
             preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
             if preview_img:
                 st.image(preview_img, width=450)
