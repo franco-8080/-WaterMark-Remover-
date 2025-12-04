@@ -158,7 +158,6 @@ def process_full_document(file_bytes, header_h, footer_h, txt, case):
 
 # --- 4. UI LAYOUT ---
 
-# REMOVED: Visitor Badge from Hero (Moved to bottom)
 st.markdown("""
 <div class="hero-container">
     <div class="hero-title">PDF Watermark Remover</div>
@@ -171,23 +170,21 @@ c1, c2, c3 = st.columns([1, 6, 1])
 with c2:
     uploaded_file = st.file_uploader("Drop your PDF here to start", type="pdf", label_visibility="collapsed")
 
-# STATE MANAGEMENT
+# STATE MANAGEMENT & INITIALIZATION
 if uploaded_file:
     file_bytes = uploaded_file.getvalue()
     
-    # Initialize State if new file
+    # Check if this is a NEW file upload
     if "current_file" not in st.session_state or st.session_state.current_file != uploaded_file.name:
         st.session_state.current_file = uploaded_file.name
-        with st.spinner("🔍 Scanning for watermarks..."):
+        
+        with st.spinner("🔍 Scanning and prepping..."):
+            # 1. Run Text Detection
             st.session_state.auto_keywords = detect_watermark_candidates(file_bytes)
-            # Reset sliders
-            st.session_state.header_val = 0
             
-            # --- MODIFICATION START: Set default footer cut to 25 ---
-            st.session_state.footer_val = 25 
-            # --- MODIFICATION END ---
-
-            # Set text input default
+            # 2. SET DEFAULTS (This ensures processing happens immediately)
+            st.session_state.header_val = 0
+            st.session_state.footer_val = 25  # <--- DEFAULT APPLIED HERE
             st.session_state.text_val = st.session_state.auto_keywords
 
 if not uploaded_file:
@@ -205,13 +202,6 @@ if not uploaded_file:
         st.caption("Files are processed in secure temporary memory and are not saved to disk.")
 
 else:
-    # Check if we should keep expander open
-    # If any value is "active" (non-zero or changed), we default to True
-    header_active = st.session_state.get("header_val", 0) > 0
-    footer_active = st.session_state.get("footer_val", 0) > 0
-    text_active = st.session_state.get("text_val", "") != st.session_state.get("auto_keywords", "")
-    should_expand = header_active or footer_active or text_active
-
     if st.session_state.get("auto_keywords"):
         st.markdown(f"""
         <div class="auto-detect-box">
@@ -225,11 +215,11 @@ else:
         with col_settings:
             st.subheader("🛠️ Removal Settings")
             
-            # FIXED: logic for keeping it open
-            with st.expander("Advanced Options", expanded=should_expand):
+            # CHANGED: 'expanded=False' forces it closed initially.
+            # The sliders inside will still contain the values set in session_state (25).
+            with st.expander("Advanced Options", expanded=False):
                 
                 st.markdown("**📝 Text Watermarks**")
-                # ADDED HELP TOOLTIP
                 text_input = st.text_input(
                     "Keywords", 
                     key="text_val",
@@ -244,19 +234,24 @@ else:
                 st.markdown("---")
                 
                 st.markdown("**✂️ Header & Footer Cutters**")
-                # ADDED HELP TOOLTIP
+                
+                # These sliders automatically read their 'value' from st.session_state[key]
                 header_height = st.slider(
                     "Top Margin Cut", 0, 150, 
                     key="header_val",
-                    help="White-outs the top X pixels of every page. Useful for removing stubborn header logos."
+                    help="White-outs the top X pixels of every page."
                 )
                 footer_height = st.slider(
                     "Bottom Margin Cut", 0, 150, 
-                    key="footer_val",
-                    help="White-outs the bottom X pixels of every page. Removes page numbers or footer watermarks."
+                    key="footer_val", 
+                    help="White-outs the bottom X pixels of every page."
                 )
 
             st.write("")
+            
+            # Because 'footer_val' was initialized to 25 in session state,
+            # 'footer_height' variable is now 25 even if the expander is closed.
+            # This triggers the cleaning immediately.
             final_pdf_data = process_full_document(
                 uploaded_file.getvalue(), 
                 header_height, 
@@ -264,6 +259,7 @@ else:
                 text_input, 
                 match_case
             )
+            
             st.download_button(
                 label="📥 Download Clean PDF",
                 data=final_pdf_data,
@@ -273,6 +269,7 @@ else:
 
         with col_preview:
             st.subheader("👁️ Preview")
+            # Same here: footer_height is 25, so preview shows the cut.
             preview_img = get_preview_image(uploaded_file.getvalue(), header_height, footer_height, text_input, match_case)
             if preview_img:
                 st.image(preview_img, width=450)
