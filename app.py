@@ -141,7 +141,7 @@ def process_full_document(file_bytes, header_h, footer_h, txt, case):
 
 st.markdown("""
 <div class="hero-container">
-    <div class="hero-title">PDF Watermark Remover</div>
+    <div class="hero-title">Watermark Remover-PDF</div>
     <div class="hero-subtitle">Clean, Professional, and Private Document Processing</div>
 </div>
 """, unsafe_allow_html=True)
