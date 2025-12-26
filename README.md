@@ -1,4 +1,4 @@
-# PDF Watermark Remover 💧
+#  Watermark Remover-PDF 💧
 
 **PDF Watermark Remover** is a secure, automated utility designed to clean unwanted artifacts—such as text watermarks, logos, headers, and footers—from PDF documents.
 
@@ -71,3 +71,4 @@ The app will open in your default web browser (usually at http://localhost:8501)
 ## 📄 License
 
 This project is open-source and available under the MIT License.
+
