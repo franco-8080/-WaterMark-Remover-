@@ -8,7 +8,7 @@ from collections import Counter
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="PDF Watermark Remover",
+    page_title="Watermark Remover-PDF",
     page_icon="💧", 
     layout="wide"
 )
